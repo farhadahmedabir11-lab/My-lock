@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "My Lock"
+rootProject.name = "FC App"
 
 include(":app")

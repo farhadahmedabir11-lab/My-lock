@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">My Lock</string>
+    <string name="app_name">FC App</string>
     <string name="app_subtitle">PIN Lock &amp; Backup Recovery</string>
     <string name="cd_vault_banner">Security vault background illustration</string>
     <string name="cd_lock_emblem">My Lock security emblem</string>
@@ -74,4 +74,33 @@
     <string name="dialog_reset_body">বর্তমান PIN, Backup recovery code এবং সংরক্ষিত সব photo ও file মুছে যাবে।</string>
     <string name="dialog_confirm_reset">রিসেট করুন</string>
     <string name="dialog_cancel">বাতিল</string>
+
+    <!-- FC App Profile Section -->
+    <string name="tab_vault">Vault</string>
+    <string name="tab_profile">Profile</string>
+    <string name="profile_brand_badge">FC VIP PROFILE</string>
+    <string name="profile_header_subtitle">Smarter • Faster • Better</string>
+    <string name="profile_default_name">FC Member</string>
+    <string name="profile_default_handle">\@fc_app_member</string>
+    <string name="profile_default_bio">প্রোফাইল সাজাতে আপনার তথ্য ও ছবি যোগ করুন</string>
+    <string name="btn_edit_profile_photo">Edit Profile Photo</string>
+    <string name="btn_change_photo">Change Photo</string>
+    <string name="btn_remove_profile_photo">Remove Photo</string>
+    <string name="btn_save_profile">Save Profile</string>
+    <string name="label_profile_name">Full Name</string>
+    <string name="hint_profile_name">আপনার নাম লিখুন</string>
+    <string name="label_profile_handle">Username / Handle</string>
+    <string name="hint_profile_handle">\@username</string>
+    <string name="label_profile_bio">Bio / Status</string>
+    <string name="hint_profile_bio">আপনার নিজের সম্পর্কে কিছু লিখুন</string>
+    <string name="profile_photo_status_ready">Gallery Photo Connected</string>
+    <string name="profile_photo_status_empty">FC App Profile Pic Active</string>
+    <string name="profile_saved_at_label">সর্বশেষ আপডেট</string>
+    <string name="profile_not_saved_yet">এখনো সেভ করা হয়নি</string>
+    <string name="msg_profile_saved">Profile সফলভাবে সেভ হয়েছে!</string>
+    <string name="msg_profile_photo_updated">Profile photo আপডেট হয়েছে!</string>
+    <string name="msg_profile_photo_removed">Profile photo সরানো হয়েছে।</string>
+    <string name="err_profile_photo_failed">Profile photo আপলোড করা যায়নি. আবার চেষ্টা করুন.</string>
+    <string name="cd_fc_logo">FC App gold and purple neon logo</string>
+    <string name="cd_profile_avatar">User profile photo</string>
 </resources>

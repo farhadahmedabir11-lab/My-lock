@@ -179,6 +179,7 @@ fun MyLockApp(
                             LockDestination.Unlocked -> {
                                 UnlockedScreen(
                                     uiState = uiState,
+                                    onSelectTab = viewModel::selectUnlockedTab,
                                     onAddPhotos = { uris ->
                                         viewModel.onAddVaultUris(uris.map { it.toString() }, forceImage = true)
                                     },
@@ -190,6 +191,14 @@ fun MyLockApp(
                                     onRemoveItem = viewModel::onRemoveVaultItem,
                                     onOpenImagePreview = viewModel::openImagePreview,
                                     onDismissImagePreview = viewModel::dismissImagePreview,
+                                    onProfilePhotoPicked = { uri ->
+                                        viewModel.onProfilePhotoPicked(uri.toString())
+                                    },
+                                    onRemoveProfilePhoto = viewModel::onRemoveProfilePhoto,
+                                    onProfileNameChange = viewModel::onProfileNameChange,
+                                    onProfileUsernameChange = viewModel::onProfileUsernameChange,
+                                    onProfileBioChange = viewModel::onProfileBioChange,
+                                    onSaveProfile = viewModel::saveProfile,
                                     onLockAgain = viewModel::lockAgain,
                                     onOpenRecovery = viewModel::openRecovery,
                                     onRequestReset = viewModel::requestResetVault,

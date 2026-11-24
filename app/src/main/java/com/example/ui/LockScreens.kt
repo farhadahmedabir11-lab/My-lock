@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -79,6 +80,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -98,6 +100,9 @@ import com.example.ui.theme.CobaltPrimary
 import com.example.ui.theme.CoralError
 import com.example.ui.theme.EmeraldContainer
 import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.FcBlackCard
+import com.example.ui.theme.FcGoldPrimary
+import com.example.ui.theme.FcPurpleNeon
 import com.example.ui.theme.SkyBlueLight
 import com.example.ui.theme.SlateMuted
 import com.example.ui.theme.SlateSecondary
@@ -462,6 +467,7 @@ fun RecoveryScreen(
 @Composable
 fun UnlockedScreen(
     uiState: LockUiState,
+    onSelectTab: (UnlockedTab) -> Unit,
     onAddPhotos: (List<Uri>) -> Unit,
     onAddFiles: (List<Uri>) -> Unit,
     onSavePhoto: (String) -> Unit,
@@ -469,6 +475,12 @@ fun UnlockedScreen(
     onRemoveItem: (String) -> Unit,
     onOpenImagePreview: (VaultItem) -> Unit,
     onDismissImagePreview: () -> Unit,
+    onProfilePhotoPicked: (Uri) -> Unit,
+    onRemoveProfilePhoto: () -> Unit,
+    onProfileNameChange: (String) -> Unit,
+    onProfileUsernameChange: (String) -> Unit,
+    onProfileBioChange: (String) -> Unit,
+    onSaveProfile: () -> Unit,
     onLockAgain: () -> Unit,
     onOpenRecovery: () -> Unit,
     onRequestReset: () -> Unit,
@@ -476,7 +488,13 @@ fun UnlockedScreen(
     onConfirmReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BackHandler(onBack = onLockAgain)
+    BackHandler {
+        if (uiState.unlockedTab == UnlockedTab.Profile) {
+            onSelectTab(UnlockedTab.Vault)
+        } else {
+            onLockAgain()
+        }
+    }
 
     val context = LocalContext.current
     var pendingSaveItemId by remember { mutableStateOf<String?>(null) }
@@ -532,7 +550,57 @@ fun UnlockedScreen(
         }
     }
 
-    VaultCard(modifier = modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        UnlockedTabBar(
+            selectedTab = uiState.unlockedTab,
+            profilePhotoPath = uiState.profile.photoPath,
+            onSelectTab = onSelectTab
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (uiState.unlockedTab == UnlockedTab.Profile) {
+            FcProfileSection(
+                uiState = uiState,
+                onProfilePhotoPicked = onProfilePhotoPicked,
+                onRemoveProfilePhoto = onRemoveProfilePhoto,
+                onNameChange = onProfileNameChange,
+                onUsernameChange = onProfileUsernameChange,
+                onBioChange = onProfileBioChange,
+                onSaveProfile = onSaveProfile
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Button(
+                onClick = onLockAgain,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SlateSecondary,
+                    contentColor = Color.White
+                ),
+                contentPadding = PaddingValues(vertical = 15.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .minimumInteractiveComponentSize()
+                    .testTag("profile_lock_again_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.btn_lock_again),
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        } else {
+            VaultCard {
         Surface(
             color = EmeraldContainer,
             shape = RoundedCornerShape(99.dp),
@@ -845,7 +913,9 @@ fun UnlockedScreen(
                     color = CoralError,
                     fontWeight = FontWeight.Medium
                 )
+                }
             }
+        }
         }
     }
 
@@ -897,6 +967,107 @@ fun UnlockedScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun UnlockedTabBar(
+    selectedTab: UnlockedTab,
+    profilePhotoPath: String?,
+    onSelectTab: (UnlockedTab) -> Unit
+) {
+    Surface(
+        color = VaultSurface,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, VaultOutline.copy(alpha = 0.75f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val isVaultSelected = selectedTab == UnlockedTab.Vault
+            Surface(
+                color = if (isVaultSelected) CobaltPrimary else Color.Transparent,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .minimumInteractiveComponentSize()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onSelectTab(UnlockedTab.Vault) }
+                    .testTag("tab_vault")
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Shield,
+                        contentDescription = null,
+                        tint = if (isVaultSelected) Color.White else SlateMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.tab_vault),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isVaultSelected) Color.White else SlateMuted
+                    )
+                }
+            }
+
+            val isProfileSelected = selectedTab == UnlockedTab.Profile
+            Surface(
+                color = if (isProfileSelected) FcBlackCard else Color.Transparent,
+                shape = RoundedCornerShape(14.dp),
+                border = if (isProfileSelected) {
+                    BorderStroke(1.dp, FcPurpleNeon.copy(alpha = 0.85f))
+                } else {
+                    null
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .minimumInteractiveComponentSize()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onSelectTab(UnlockedTab.Profile) }
+                    .testTag("tab_profile")
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!profilePhotoPath.isNullOrBlank()) {
+                        AsyncImage(
+                            model = File(profilePhotoPath),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.img_fc_app_logo),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.tab_profile),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isProfileSelected) FcGoldPrimary else SlateMuted
+                    )
+                }
+            }
+        }
     }
 }
 

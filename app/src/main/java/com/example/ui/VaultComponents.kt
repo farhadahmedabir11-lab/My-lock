@@ -34,7 +34,6 @@ import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -74,6 +73,9 @@ import com.example.ui.theme.CoralError
 import com.example.ui.theme.DisplayLatinFontFamily
 import com.example.ui.theme.EmeraldContainer
 import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.FcBlackDeep
+import com.example.ui.theme.FcGoldPrimary
+import com.example.ui.theme.FcPurpleNeon
 import com.example.ui.theme.SkyBlueLight
 import com.example.ui.theme.VaultBackground
 import com.example.ui.theme.VaultOutline
@@ -140,34 +142,31 @@ fun VaultBrandHeader(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
-            shape = CircleShape,
-            color = if (isUnlocked) EmeraldContainer else VaultSurfaceElevated,
+            shape = RoundedCornerShape(24.dp),
+            color = FcBlackDeep,
             border = BorderStroke(
-                width = 1.5.dp,
-                color = if (isUnlocked) EmeraldSuccess.copy(alpha = 0.6f) else SkyBlueLight.copy(alpha = 0.35f)
+                width = 2.dp,
+                brush = Brush.linearGradient(
+                    colors = if (isUnlocked) {
+                        listOf(EmeraldSuccess, FcGoldPrimary, EmeraldSuccess)
+                    } else {
+                        listOf(FcPurpleNeon, FcGoldPrimary, FcPurpleNeon)
+                    }
+                )
             ),
-            shadowElevation = 12.dp,
-            modifier = Modifier.size(72.dp)
+            shadowElevation = 16.dp,
+            modifier = Modifier
+                .size(width = 130.dp, height = 112.dp)
+                .testTag("top_fc_logo")
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (isUnlocked) {
-                    Icon(
-                        imageVector = Icons.Rounded.LockOpen,
-                        contentDescription = stringResource(R.string.cd_lock_emblem),
-                        tint = EmeraldSuccess,
-                        modifier = Modifier.size(34.dp)
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_lock_emblem),
-                        contentDescription = stringResource(R.string.cd_lock_emblem),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                    )
-                }
-            }
+            Image(
+                painter = painterResource(id = R.drawable.img_fc_header_logo),
+                contentDescription = stringResource(R.string.cd_fc_logo),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(24.dp))
+            )
         }
 
         Spacer(modifier = Modifier.height(14.dp))

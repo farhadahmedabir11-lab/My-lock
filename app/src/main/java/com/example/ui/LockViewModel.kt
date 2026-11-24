@@ -8,6 +8,7 @@ import com.example.R
 import com.example.data.DataStoreLockRepository
 import com.example.data.LockRepository
 import com.example.data.SavePhotoResult
+import com.example.data.UserProfile
 import com.example.data.VaultItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,11 @@ enum class LockDestination {
     Unlocked
 }
 
+enum class UnlockedTab {
+    Vault,
+    Profile
+}
+
 sealed interface FeedbackBanner {
     data class Info(val messageResId: Int, val countArg: Int? = null) : FeedbackBanner
     data class Error(val messageResId: Int) : FeedbackBanner
@@ -35,6 +41,7 @@ data class SnackbarNotice(
 
 data class LockUiState(
     val destination: LockDestination = LockDestination.Loading,
+    val unlockedTab: UnlockedTab = UnlockedTab.Vault,
     val setupPinInput: String = "",
     val setupBackupInput: String = "",
     val unlockPinInput: String = "",
@@ -49,6 +56,11 @@ data class LockUiState(
     val isImportingItems: Boolean = false,
     val savingItemId: String? = null,
     val previewImageItem: VaultItem? = null,
+    val profile: UserProfile = UserProfile(),
+    val profileNameInput: String = "",
+    val profileUsernameInput: String = "",
+    val profileBioInput: String = "",
+    val isSavingProfile: Boolean = false,
     val showResetConfirmDialog: Boolean = false
 )
 
@@ -69,10 +81,21 @@ class LockViewModel(
             }
             repository.stateFlow.collect { creds ->
                 _uiState.update { state ->
+                    val shouldSeedInputs =
+                        state.profileNameInput.isEmpty() &&
+                            state.profileUsernameInput.isEmpty() &&
+                            state.profileBioInput.isEmpty() &&
+                            (creds.profile.displayName.isNotEmpty() ||
+                                creds.profile.username.isNotEmpty() ||
+                                creds.profile.bio.isNotEmpty())
                     state.copy(
                         lastUnlockedAtMillis = creds.lastUnlockedAtMillis,
                         pinUpdatedAtMillis = creds.pinUpdatedAtMillis,
-                        vaultItems = creds.vaultItems
+                        vaultItems = creds.vaultItems,
+                        profile = creds.profile,
+                        profileNameInput = if (shouldSeedInputs) creds.profile.displayName else state.profileNameInput,
+                        profileUsernameInput = if (shouldSeedInputs) creds.profile.username else state.profileUsernameInput,
+                        profileBioInput = if (shouldSeedInputs) creds.profile.bio else state.profileBioInput
                     )
                 }
             }
@@ -316,6 +339,75 @@ class LockViewModel(
         _uiState.update { it.copy(snackbarNotice = null) }
     }
 
+    fun selectUnlockedTab(tab: UnlockedTab) {
+        _uiState.update { it.copy(unlockedTab = tab, feedback = null) }
+    }
+
+    fun onProfileNameChange(value: String) {
+        _uiState.update { it.copy(profileNameInput = value.take(40), feedback = null) }
+    }
+
+    fun onProfileUsernameChange(value: String) {
+        _uiState.update { it.copy(profileUsernameInput = value.take(32), feedback = null) }
+    }
+
+    fun onProfileBioChange(value: String) {
+        _uiState.update { it.copy(profileBioInput = value.take(140), feedback = null) }
+    }
+
+    fun onProfilePhotoPicked(uriString: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingProfile = true, feedback = null) }
+            val savedPath = repository.updateProfilePhoto(uriString)
+            _uiState.update { state ->
+                if (savedPath != null) {
+                    state.copy(
+                        isSavingProfile = false,
+                        feedback = FeedbackBanner.Info(R.string.msg_profile_photo_updated),
+                        snackbarNotice = SnackbarNotice(messageResId = R.string.msg_profile_photo_updated)
+                    )
+                } else {
+                    state.copy(
+                        isSavingProfile = false,
+                        feedback = FeedbackBanner.Error(R.string.err_profile_photo_failed),
+                        snackbarNotice = SnackbarNotice(messageResId = R.string.err_profile_photo_failed)
+                    )
+                }
+            }
+        }
+    }
+
+    fun onRemoveProfilePhoto() {
+        viewModelScope.launch {
+            repository.removeProfilePhoto()
+            _uiState.update {
+                it.copy(
+                    feedback = FeedbackBanner.Info(R.string.msg_profile_photo_removed),
+                    snackbarNotice = SnackbarNotice(messageResId = R.string.msg_profile_photo_removed)
+                )
+            }
+        }
+    }
+
+    fun saveProfile() {
+        val current = _uiState.value
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSavingProfile = true, feedback = null) }
+            repository.saveProfile(
+                displayName = current.profileNameInput,
+                username = current.profileUsernameInput,
+                bio = current.profileBioInput
+            )
+            _uiState.update {
+                it.copy(
+                    isSavingProfile = false,
+                    feedback = FeedbackBanner.Info(R.string.msg_profile_saved),
+                    snackbarNotice = SnackbarNotice(messageResId = R.string.msg_profile_saved)
+                )
+            }
+        }
+    }
+
     fun openImagePreview(item: VaultItem) {
         if (item.isImage) {
             _uiState.update { it.copy(previewImageItem = item) }
@@ -330,6 +422,7 @@ class LockViewModel(
         _uiState.update {
             it.copy(
                 destination = LockDestination.Unlock,
+                unlockedTab = UnlockedTab.Vault,
                 unlockPinInput = "",
                 feedback = null,
                 snackbarNotice = null,

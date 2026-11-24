@@ -1,6 +1,6 @@
 {
-  "name": "My Lock",
-  "description": "PIN lock and backup recovery vault app",
+  "name": "FC App",
+  "description": "PIN lock, vault, and FC profile app",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

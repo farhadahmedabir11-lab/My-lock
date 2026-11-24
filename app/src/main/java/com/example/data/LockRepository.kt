@@ -53,11 +53,20 @@ sealed interface SavePhotoResult {
     data object Failed : SavePhotoResult
 }
 
+data class UserProfile(
+    val displayName: String = "",
+    val username: String = "",
+    val bio: String = "",
+    val photoPath: String? = null,
+    val updatedAtMillis: Long? = null
+)
+
 data class LockCredentialsState(
     val isSetupComplete: Boolean = false,
     val lastUnlockedAtMillis: Long? = null,
     val pinUpdatedAtMillis: Long? = null,
-    val vaultItems: List<VaultItem> = emptyList()
+    val vaultItems: List<VaultItem> = emptyList(),
+    val profile: UserProfile = UserProfile()
 )
 
 interface LockRepository {
@@ -71,6 +80,9 @@ interface LockRepository {
     suspend fun addVaultItems(uriStrings: List<String>, forceImage: Boolean = false): Int
     suspend fun savePhotoToGallery(itemId: String): SavePhotoResult
     suspend fun removeVaultItem(itemId: String)
+    suspend fun saveProfile(displayName: String, username: String, bio: String)
+    suspend fun updateProfilePhoto(uriString: String): String?
+    suspend fun removeProfilePhoto()
     suspend fun clearAll()
 }
 
@@ -85,6 +97,11 @@ class DataStoreLockRepository(
         val LAST_UNLOCKED_AT = longPreferencesKey("last_unlocked_at")
         val PIN_UPDATED_AT = longPreferencesKey("pin_updated_at")
         val VAULT_ITEMS_JSON = stringPreferencesKey("vault_items_json")
+        val PROFILE_NAME = stringPreferencesKey("profile_display_name")
+        val PROFILE_USERNAME = stringPreferencesKey("profile_username")
+        val PROFILE_BIO = stringPreferencesKey("profile_bio")
+        val PROFILE_PHOTO_PATH = stringPreferencesKey("profile_photo_path")
+        val PROFILE_UPDATED_AT = longPreferencesKey("profile_updated_at")
     }
 
     override val stateFlow: Flow<LockCredentialsState> = context.lockDataStore.data.map { prefs ->
@@ -92,7 +109,14 @@ class DataStoreLockRepository(
             isSetupComplete = prefs[Keys.PIN_HASH] != null && prefs[Keys.BACKUP_HASH] != null,
             lastUnlockedAtMillis = prefs[Keys.LAST_UNLOCKED_AT],
             pinUpdatedAtMillis = prefs[Keys.PIN_UPDATED_AT],
-            vaultItems = decodeVaultItems(prefs[Keys.VAULT_ITEMS_JSON])
+            vaultItems = decodeVaultItems(prefs[Keys.VAULT_ITEMS_JSON]),
+            profile = UserProfile(
+                displayName = prefs[Keys.PROFILE_NAME].orEmpty(),
+                username = prefs[Keys.PROFILE_USERNAME].orEmpty(),
+                bio = prefs[Keys.PROFILE_BIO].orEmpty(),
+                photoPath = prefs[Keys.PROFILE_PHOTO_PATH]?.takeIf { it.isNotBlank() && File(it).exists() },
+                updatedAtMillis = prefs[Keys.PROFILE_UPDATED_AT]
+            )
         )
     }
 
@@ -409,10 +433,63 @@ class DataStoreLockRepository(
         }
     }
 
+    override suspend fun saveProfile(displayName: String, username: String, bio: String) {
+        val now = System.currentTimeMillis()
+        context.lockDataStore.edit { prefs ->
+            prefs[Keys.PROFILE_NAME] = displayName.trim()
+            prefs[Keys.PROFILE_USERNAME] = username.trim()
+            prefs[Keys.PROFILE_BIO] = bio.trim()
+            prefs[Keys.PROFILE_UPDATED_AT] = now
+        }
+    }
+
+    override suspend fun updateProfilePhoto(uriString: String): String? {
+        val newPath = withContext(Dispatchers.IO) {
+            runCatching {
+                val uri = Uri.parse(uriString)
+                val profileDir = File(context.filesDir, "profile").apply { mkdirs() }
+                val destFile = File(profileDir, "fc_avatar_${System.currentTimeMillis()}.jpg")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    destFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                } ?: return@runCatching null
+
+                // Clean up previous avatar files inside profileDir
+                profileDir.listFiles()?.forEach { existing ->
+                    if (existing.absolutePath != destFile.absolutePath) {
+                        existing.delete()
+                    }
+                }
+                destFile.absolutePath
+            }.getOrNull()
+        } ?: return null
+
+        val now = System.currentTimeMillis()
+        context.lockDataStore.edit { prefs ->
+            prefs[Keys.PROFILE_PHOTO_PATH] = newPath
+            prefs[Keys.PROFILE_UPDATED_AT] = now
+        }
+        return newPath
+    }
+
+    override suspend fun removeProfilePhoto() {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                File(context.filesDir, "profile").deleteRecursively()
+            }
+        }
+        context.lockDataStore.edit { prefs ->
+            prefs.remove(Keys.PROFILE_PHOTO_PATH)
+            prefs[Keys.PROFILE_UPDATED_AT] = System.currentTimeMillis()
+        }
+    }
+
     override suspend fun clearAll() {
         withContext(Dispatchers.IO) {
             runCatching {
                 File(context.filesDir, "vault_items").deleteRecursively()
+                File(context.filesDir, "profile").deleteRecursively()
             }
         }
         context.lockDataStore.edit { it.clear() }

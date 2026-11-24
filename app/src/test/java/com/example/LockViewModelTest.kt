@@ -3,10 +3,12 @@ package com.example
 import com.example.data.LockCredentialsState
 import com.example.data.LockRepository
 import com.example.data.SavePhotoResult
+import com.example.data.UserProfile
 import com.example.data.VaultItem
 import com.example.ui.FeedbackBanner
 import com.example.ui.LockDestination
 import com.example.ui.LockViewModel
+import com.example.ui.UnlockedTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -89,6 +91,37 @@ private class FakeLockRepository : LockRepository {
     override suspend fun removeVaultItem(itemId: String) {
         state.value = state.value.copy(
             vaultItems = state.value.vaultItems.filterNot { it.id == itemId }
+        )
+    }
+
+    override suspend fun saveProfile(displayName: String, username: String, bio: String) {
+        state.value = state.value.copy(
+            profile = state.value.profile.copy(
+                displayName = displayName.trim(),
+                username = username.trim(),
+                bio = bio.trim(),
+                updatedAtMillis = System.currentTimeMillis()
+            )
+        )
+    }
+
+    override suspend fun updateProfilePhoto(uriString: String): String? {
+        val fakePath = "/tmp/fc_profile_${uriString.hashCode()}.jpg"
+        state.value = state.value.copy(
+            profile = state.value.profile.copy(
+                photoPath = fakePath,
+                updatedAtMillis = System.currentTimeMillis()
+            )
+        )
+        return fakePath
+    }
+
+    override suspend fun removeProfilePhoto() {
+        state.value = state.value.copy(
+            profile = state.value.profile.copy(
+                photoPath = null,
+                updatedAtMillis = System.currentTimeMillis()
+            )
         )
     }
 
@@ -292,4 +325,56 @@ class LockViewModelTest {
                 viewModel.uiState.value.feedback
             )
         }
+
+    @Test
+    fun `fc profile info and gallery photo persist across updates`() = runTest(testDispatcher) {
+        val repository = FakeLockRepository()
+        repository.saveSetup("1234", "mybackup")
+        val viewModel = LockViewModel(repository)
+        advanceUntilIdle()
+
+        "1234".forEach { viewModel.onKeypadDigit(it) }
+        viewModel.submitUnlock()
+        advanceUntilIdle()
+
+        viewModel.selectUnlockedTab(UnlockedTab.Profile)
+        assertEquals(UnlockedTab.Profile, viewModel.uiState.value.unlockedTab)
+
+        // Upload profile photo from gallery
+        viewModel.onProfilePhotoPicked("content://media/avatar.jpg")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.profile.photoPath != null)
+        assertEquals(
+            FeedbackBanner.Info(R.string.msg_profile_photo_updated),
+            viewModel.uiState.value.feedback
+        )
+
+        // Edit and save profile info
+        viewModel.onProfileNameChange("Farhad Ahmed")
+        viewModel.onProfileUsernameChange("@farhad_fc")
+        viewModel.onProfileBioChange("FC App Gold Member")
+        viewModel.saveProfile()
+        advanceUntilIdle()
+
+        assertEquals("Farhad Ahmed", viewModel.uiState.value.profile.displayName)
+        assertEquals("@farhad_fc", viewModel.uiState.value.profile.username)
+        assertEquals("FC App Gold Member", viewModel.uiState.value.profile.bio)
+        assertEquals(
+            FeedbackBanner.Info(R.string.msg_profile_saved),
+            viewModel.uiState.value.feedback
+        )
+
+        // Re-create ViewModel against same repository to verify persistence
+        val reopenedViewModel = LockViewModel(repository)
+        advanceUntilIdle()
+        assertEquals("Farhad Ahmed", reopenedViewModel.uiState.value.profileNameInput)
+        assertEquals("@farhad_fc", reopenedViewModel.uiState.value.profileUsernameInput)
+        assertEquals("FC App Gold Member", reopenedViewModel.uiState.value.profileBioInput)
+        assertTrue(reopenedViewModel.uiState.value.profile.photoPath != null)
+
+        // Remove profile photo
+        reopenedViewModel.onRemoveProfilePhoto()
+        advanceUntilIdle()
+        assertNull(reopenedViewModel.uiState.value.profile.photoPath)
+    }
 }
