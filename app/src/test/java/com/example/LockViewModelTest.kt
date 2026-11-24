@@ -2,6 +2,7 @@ package com.example
 
 import com.example.data.LockCredentialsState
 import com.example.data.LockRepository
+import com.example.data.SavePhotoResult
 import com.example.data.VaultItem
 import com.example.ui.FeedbackBanner
 import com.example.ui.LockDestination
@@ -70,6 +71,19 @@ private class FakeLockRepository : LockRepository {
         }
         state.value = state.value.copy(vaultItems = state.value.vaultItems + added)
         return added.size
+    }
+
+    override suspend fun savePhotoToGallery(itemId: String): SavePhotoResult {
+        val item = state.value.vaultItems.firstOrNull { it.id == itemId } ?: return SavePhotoResult.Failed
+        if (!item.isImage) return SavePhotoResult.Failed
+        if (item.savedGalleryUri != null) return SavePhotoResult.AlreadySaved
+        val galleryUri = "content://media/external/images/media/${item.id}"
+        state.value = state.value.copy(
+            vaultItems = state.value.vaultItems.map {
+                if (it.id == itemId) it.copy(savedGalleryUri = galleryUri) else it
+            }
+        )
+        return SavePhotoResult.Saved(galleryUri)
     }
 
     override suspend fun removeVaultItem(itemId: String) {
@@ -230,4 +244,52 @@ class LockViewModelTest {
         assertEquals(1, viewModel.uiState.value.vaultItems.size)
         assertEquals("notes.pdf", viewModel.uiState.value.vaultItems.first().name)
     }
+
+    @Test
+    fun `save photo to phone succeeds prevents duplicates keeps original and handles failures`() =
+        runTest(testDispatcher) {
+            val repository = FakeLockRepository()
+            repository.saveSetup("1234", "mybackup")
+            val viewModel = LockViewModel(repository)
+            advanceUntilIdle()
+
+            "1234".forEach { viewModel.onKeypadDigit(it) }
+            viewModel.submitUnlock()
+            advanceUntilIdle()
+
+            viewModel.onAddVaultUris(listOf("content://media/vacation.jpg"), forceImage = true)
+            viewModel.onAddVaultUris(listOf("content://docs/report.pdf"), forceImage = false)
+            advanceUntilIdle()
+
+            val photo = viewModel.uiState.value.vaultItems.first { it.isImage }
+            val file = viewModel.uiState.value.vaultItems.first { !it.isImage }
+
+            // First save succeeds and keeps original photo in vault
+            viewModel.savePhotoToPhone(photo.id)
+            advanceUntilIdle()
+            assertEquals(
+                FeedbackBanner.Info(R.string.msg_photo_saved),
+                viewModel.uiState.value.feedback
+            )
+            assertEquals(2, viewModel.uiState.value.vaultItems.size)
+            assertTrue(
+                viewModel.uiState.value.vaultItems.first { it.id == photo.id }.savedGalleryUri != null
+            )
+
+            // Second save prevents duplicate
+            viewModel.savePhotoToPhone(photo.id)
+            advanceUntilIdle()
+            assertEquals(
+                FeedbackBanner.Info(R.string.msg_photo_already_saved),
+                viewModel.uiState.value.feedback
+            )
+
+            // Non-image / missing item shows understandable error
+            viewModel.savePhotoToPhone(file.id)
+            advanceUntilIdle()
+            assertEquals(
+                FeedbackBanner.Error(R.string.err_photo_save_failed),
+                viewModel.uiState.value.feedback
+            )
+        }
 }

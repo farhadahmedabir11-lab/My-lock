@@ -1,6 +1,9 @@
 package com.example.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -30,8 +33,10 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.AttachFile
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Key
@@ -46,6 +51,7 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +76,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -83,6 +90,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.example.R
 import com.example.data.VaultItem
@@ -456,6 +464,8 @@ fun UnlockedScreen(
     uiState: LockUiState,
     onAddPhotos: (List<Uri>) -> Unit,
     onAddFiles: (List<Uri>) -> Unit,
+    onSavePhoto: (String) -> Unit,
+    onLegacyPermissionDenied: () -> Unit,
     onRemoveItem: (String) -> Unit,
     onOpenImagePreview: (VaultItem) -> Unit,
     onDismissImagePreview: () -> Unit,
@@ -467,6 +477,38 @@ fun UnlockedScreen(
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = onLockAgain)
+
+    val context = LocalContext.current
+    var pendingSaveItemId by remember { mutableStateOf<String?>(null) }
+
+    val legacyWritePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val itemId = pendingSaveItemId
+        pendingSaveItemId = null
+        if (granted && itemId != null) {
+            onSavePhoto(itemId)
+        } else if (!granted) {
+            onLegacyPermissionDenied()
+        }
+    }
+
+    val handleSavePhotoClick: (String) -> Unit = { itemId ->
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            onSavePhoto(itemId)
+        } else {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPermission) {
+                onSavePhoto(itemId)
+            } else {
+                pendingSaveItemId = itemId
+                legacyWritePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
@@ -675,7 +717,9 @@ fun UnlockedScreen(
                 uiState.vaultItems.forEach { item ->
                     VaultItemCard(
                         item = item,
+                        isSaving = uiState.savingItemId == item.id,
                         onPreviewClick = { onOpenImagePreview(item) },
+                        onSavePhotoClick = { handleSavePhotoClick(item.id) },
                         onRemoveClick = { onRemoveItem(item.id) }
                     )
                 }
@@ -808,6 +852,8 @@ fun UnlockedScreen(
     uiState.previewImageItem?.let { item ->
         ImagePreviewDialog(
             item = item,
+            isSaving = uiState.savingItemId == item.id,
+            onSaveClick = { handleSavePhotoClick(item.id) },
             onDismiss = onDismissImagePreview
         )
     }
@@ -857,7 +903,9 @@ fun UnlockedScreen(
 @Composable
 private fun VaultItemCard(
     item: VaultItem,
+    isSaving: Boolean,
     onPreviewClick: () -> Unit,
+    onSavePhotoClick: () -> Unit,
     onRemoveClick: () -> Unit
 ) {
     Surface(
@@ -928,29 +976,105 @@ private fun VaultItemCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
-                onClick = onRemoveClick,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SlateSecondary,
-                    contentColor = Color.White
-                ),
-                contentPadding = PaddingValues(vertical = 10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .minimumInteractiveComponentSize()
-                    .testTag("remove_item_${item.id}")
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.DeleteOutline,
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = stringResource(R.string.btn_remove_item),
-                    style = MaterialTheme.typography.labelLarge
-                )
+            if (item.isImage) {
+                val isSaved = item.savedGalleryUri != null
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = onSavePhotoClick,
+                        enabled = !isSaving,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSaved) EmeraldContainer else CobaltPrimary,
+                            contentColor = if (isSaved) EmeraldSuccess else Color.White,
+                            disabledContainerColor = CobaltPrimary.copy(alpha = 0.6f),
+                            disabledContentColor = Color.White
+                        ),
+                        border = if (isSaved) BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.5f)) else null,
+                        contentPadding = PaddingValues(vertical = 10.dp, horizontal = 8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .minimumInteractiveComponentSize()
+                            .testTag("save_photo_${item.id}")
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (isSaved) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
+                                contentDescription = stringResource(R.string.cd_save_to_phone),
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(
+                                if (isSaved) R.string.btn_saved_to_gallery else R.string.btn_save_to_phone
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Button(
+                        onClick = onRemoveClick,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SlateSecondary,
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(vertical = 10.dp, horizontal = 8.dp),
+                        modifier = Modifier
+                            .weight(0.85f)
+                            .minimumInteractiveComponentSize()
+                            .testTag("remove_item_${item.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.btn_remove_item),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onRemoveClick,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SlateSecondary,
+                        contentColor = Color.White
+                    ),
+                    contentPadding = PaddingValues(vertical = 10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .minimumInteractiveComponentSize()
+                        .testTag("remove_item_${item.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteOutline,
+                        contentDescription = null,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.btn_remove_item),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             }
         }
     }
@@ -959,6 +1083,8 @@ private fun VaultItemCard(
 @Composable
 private fun ImagePreviewDialog(
     item: VaultItem,
+    isSaving: Boolean,
+    onSaveClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(
@@ -982,23 +1108,60 @@ private fun ImagePreviewDialog(
                     .clip(RoundedCornerShape(16.dp))
             )
 
-            Surface(
-                color = VaultSurfaceElevated.copy(alpha = 0.92f),
-                shape = CircleShape,
-                border = BorderStroke(1.dp, VaultOutline),
+            Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 16.dp)
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.minimumInteractiveComponentSize()
+                Surface(
+                    color = VaultSurfaceElevated.copy(alpha = 0.92f),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, VaultOutline)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = stringResource(R.string.cd_close_preview),
-                        tint = Color.White
-                    )
+                    IconButton(
+                        onClick = onSaveClick,
+                        enabled = !isSaving,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("preview_save_photo_button")
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                color = SkyBlueLight,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (item.savedGalleryUri != null) {
+                                    Icons.Rounded.CheckCircle
+                                } else {
+                                    Icons.Rounded.Download
+                                },
+                                contentDescription = stringResource(R.string.cd_save_to_phone),
+                                tint = if (item.savedGalleryUri != null) EmeraldSuccess else SkyBlueLight
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    color = VaultSurfaceElevated.copy(alpha = 0.92f),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, VaultOutline)
+                ) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.cd_close_preview),
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }

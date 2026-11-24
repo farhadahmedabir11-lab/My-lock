@@ -29,8 +29,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,6 +55,7 @@ import com.example.ui.VaultBrandHeader
 import com.example.ui.theme.MyLockTheme
 import com.example.ui.theme.SkyBlueLight
 import com.example.ui.theme.VaultBackground
+import com.example.ui.theme.VaultSurfaceElevated
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,11 +79,28 @@ fun MyLockApp(
     )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.snackbarNotice?.id) {
+        val notice = uiState.snackbarNotice ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message = context.getString(notice.messageResId))
+        viewModel.consumeSnackbarNotice()
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets.safeDrawing
+        contentWindowInsets = WindowInsets.safeDrawing,
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = VaultSurfaceElevated,
+                    contentColor = Color.White
+                )
+            }
+        }
     ) { innerPadding ->
         VaultBackdrop {
             Box(
@@ -162,6 +185,8 @@ fun MyLockApp(
                                     onAddFiles = { uris ->
                                         viewModel.onAddVaultUris(uris.map { it.toString() }, forceImage = false)
                                     },
+                                    onSavePhoto = viewModel::savePhotoToPhone,
+                                    onLegacyPermissionDenied = viewModel::onLegacyStoragePermissionDenied,
                                     onRemoveItem = viewModel::onRemoveVaultItem,
                                     onOpenImagePreview = viewModel::openImagePreview,
                                     onDismissImagePreview = viewModel::dismissImagePreview,

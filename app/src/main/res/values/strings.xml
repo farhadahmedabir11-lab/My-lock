@@ -44,7 +44,10 @@
     <string name="unlocked_badge">সুরক্ষিত ভল্ট খোলা আছে</string>
     <string name="btn_add_photo">+ Add Photo</string>
     <string name="btn_add_file">+ Add File</string>
+    <string name="btn_save_to_phone">Save to Phone</string>
+    <string name="btn_saved_to_gallery">Saved</string>
     <string name="btn_remove_item">Remove</string>
+    <string name="cd_save_to_phone">Save photo to phone gallery</string>
     <string name="vault_items_header">সংরক্ষিত আইটেম (%1$d)</string>
     <string name="vault_empty_title">ভল্ট এখনো খালি</string>
     <string name="vault_empty_subtitle">উপরের বোতামে ট্যাপ করে photo বা file যোগ করুন</string>
@@ -54,6 +57,10 @@
     <string name="cd_close_preview">Close preview</string>
     <string name="msg_items_added">ভল্টে %1$dটি আইটেম যোগ হয়েছে</string>
     <string name="err_import_failed">ফাইল যোগ করা যায়নি. আবার চেষ্টা করুন.</string>
+    <string name="msg_photo_saved">Photo আপনার ফোনের Gallery-তে (Pictures/My Lock) সেভ হয়েছে!</string>
+    <string name="msg_photo_already_saved">এই photo আগেই আপনার ফোনের Gallery-তে সেভ করা আছে।</string>
+    <string name="err_photo_save_failed">Photo Gallery-তে সেভ করা যায়নি. আবার চেষ্টা করুন.</string>
+    <string name="err_save_permission_denied">Gallery-তে সেভ করতে Storage অনুমতি প্রয়োজন।</string>
     <string name="status_pin_protection_label">PIN সুরক্ষা</string>
     <string name="status_pin_protection_value">সক্রিয় (৪-সংখ্যার SHA-256)</string>
     <string name="status_backup_label">Backup Recovery</string>

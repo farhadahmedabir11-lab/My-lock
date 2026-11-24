@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.R
 import com.example.data.DataStoreLockRepository
 import com.example.data.LockRepository
+import com.example.data.SavePhotoResult
 import com.example.data.VaultItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,11 @@ sealed interface FeedbackBanner {
     data class Error(val messageResId: Int) : FeedbackBanner
 }
 
+data class SnackbarNotice(
+    val id: Long = System.nanoTime(),
+    val messageResId: Int
+)
+
 data class LockUiState(
     val destination: LockDestination = LockDestination.Loading,
     val setupPinInput: String = "",
@@ -35,11 +41,13 @@ data class LockUiState(
     val recoveryBackupInput: String = "",
     val recoveryNewPinInput: String = "",
     val feedback: FeedbackBanner? = null,
+    val snackbarNotice: SnackbarNotice? = null,
     val wrongPinAttemptCount: Int = 0,
     val lastUnlockedAtMillis: Long? = null,
     val pinUpdatedAtMillis: Long? = null,
     val vaultItems: List<VaultItem> = emptyList(),
     val isImportingItems: Boolean = false,
+    val savingItemId: String? = null,
     val previewImageItem: VaultItem? = null,
     val showResetConfirmDialog: Boolean = false
 )
@@ -270,6 +278,44 @@ class LockViewModel(
         }
     }
 
+    fun savePhotoToPhone(itemId: String) {
+        if (_uiState.value.savingItemId != null) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(savingItemId = itemId, feedback = null) }
+            val result = repository.savePhotoToGallery(itemId)
+            _uiState.update { state ->
+                val banner = when (result) {
+                    is SavePhotoResult.Saved -> FeedbackBanner.Info(R.string.msg_photo_saved)
+                    SavePhotoResult.AlreadySaved -> FeedbackBanner.Info(R.string.msg_photo_already_saved)
+                    SavePhotoResult.Failed -> FeedbackBanner.Error(R.string.err_photo_save_failed)
+                }
+                val noticeResId = when (result) {
+                    is SavePhotoResult.Saved -> R.string.msg_photo_saved
+                    SavePhotoResult.AlreadySaved -> R.string.msg_photo_already_saved
+                    SavePhotoResult.Failed -> R.string.err_photo_save_failed
+                }
+                state.copy(
+                    savingItemId = null,
+                    feedback = banner,
+                    snackbarNotice = SnackbarNotice(messageResId = noticeResId)
+                )
+            }
+        }
+    }
+
+    fun onLegacyStoragePermissionDenied() {
+        _uiState.update {
+            it.copy(
+                feedback = FeedbackBanner.Error(R.string.err_save_permission_denied),
+                snackbarNotice = SnackbarNotice(messageResId = R.string.err_save_permission_denied)
+            )
+        }
+    }
+
+    fun consumeSnackbarNotice() {
+        _uiState.update { it.copy(snackbarNotice = null) }
+    }
+
     fun openImagePreview(item: VaultItem) {
         if (item.isImage) {
             _uiState.update { it.copy(previewImageItem = item) }
@@ -286,6 +332,7 @@ class LockViewModel(
                 destination = LockDestination.Unlock,
                 unlockPinInput = "",
                 feedback = null,
+                snackbarNotice = null,
                 previewImageItem = null,
                 showResetConfirmDialog = false
             )
