@@ -1,0 +1,70 @@
+<resources>
+    <string name="app_name">My Lock</string>
+    <string name="app_subtitle">PIN Lock &amp; Backup Recovery</string>
+    <string name="cd_vault_banner">Security vault background illustration</string>
+    <string name="cd_lock_emblem">My Lock security emblem</string>
+    <string name="cd_toggle_visibility">Toggle visibility</string>
+    <string name="cd_backspace">Delete last digit</string>
+    <string name="cd_clear_pin">Clear PIN</string>
+    <string name="cd_back_to_unlock">Back to unlock screen</string>
+
+    <!-- Setup Screen -->
+    <string name="setup_title">প্রথমে PIN সেট করুন</string>
+    <string name="setup_subtitle">আপনার অ্যাপ সুরক্ষিত রাখতে ৪ সংখ্যার PIN ও একটি Backup code তৈরি করুন</string>
+    <string name="hint_four_digit_pin">৪ সংখ্যার PIN</string>
+    <string name="hint_backup_code_create">Backup recovery code (নিজে তৈরি করুন)</string>
+    <string name="helper_backup_code">অন্তত ৫ অক্ষরের একটি মনে রাখার মতো কোড দিন</string>
+    <string name="btn_set_pin">PIN সেট করুন</string>
+    <string name="err_invalid_setup">৪ সংখ্যার PIN এবং অন্তত ৫ অক্ষরের backup code দিন.</string>
+    <string name="msg_pin_set">PIN সেট হয়েছে!</string>
+
+    <!-- Unlock Screen -->
+    <string name="unlock_title">PIN দিন</string>
+    <string name="unlock_subtitle">আনলক করতে আপনার ৪ সংখ্যার PIN লিখুন</string>
+    <string name="btn_unlock">Unlock</string>
+    <string name="btn_recover_with_backup">Backup দিয়ে PIN বদলান</string>
+    <string name="err_wrong_pin">PIN ভুল হয়েছে. আবার চেষ্টা করুন.</string>
+    <string name="err_incomplete_pin">অনুগ্রহ করে ৪ সংখ্যার PIN দিন.</string>
+    <string name="pin_dot_progress">%1$d / 4 digits entered</string>
+
+    <!-- Recovery Screen -->
+    <string name="recovery_title">Backup Recovery</string>
+    <string name="recovery_subtitle">আপনার সংরক্ষিত Backup code দিয়ে নতুন PIN সেট করুন</string>
+    <string name="hint_backup_code">Backup code</string>
+    <string name="hint_new_four_digit_pin">নতুন ৪ সংখ্যার PIN</string>
+    <string name="btn_set_new_pin">নতুন PIN সেট করুন</string>
+    <string name="btn_go_back">ফিরে যান</string>
+    <string name="err_backup_mismatch">Backup code মেলেনি.</string>
+    <string name="err_new_pin_length">নতুন PIN ৪ সংখ্যার হতে হবে.</string>
+    <string name="msg_new_pin_set">নতুন PIN সেট হয়েছে.</string>
+
+    <!-- Unlocked / Success Screen -->
+    <string name="unlocked_title">Unlocked!</string>
+    <string name="unlocked_subtitle">Photo ও file যোগ করুন (আপনার নিরাপদ ভল্টে)।</string>
+    <string name="unlocked_badge">সুরক্ষিত ভল্ট খোলা আছে</string>
+    <string name="btn_add_photo">+ Add Photo</string>
+    <string name="btn_add_file">+ Add File</string>
+    <string name="btn_remove_item">Remove</string>
+    <string name="vault_items_header">সংরক্ষিত আইটেম (%1$d)</string>
+    <string name="vault_empty_title">ভল্ট এখনো খালি</string>
+    <string name="vault_empty_subtitle">উপরের বোতামে ট্যাপ করে photo বা file যোগ করুন</string>
+    <string name="item_size_kb">%1$d KB</string>
+    <string name="cd_vault_photo_preview">Vault photo preview: %1$s</string>
+    <string name="cd_vault_file_icon">Vault file icon</string>
+    <string name="cd_close_preview">Close preview</string>
+    <string name="msg_items_added">ভল্টে %1$dটি আইটেম যোগ হয়েছে</string>
+    <string name="err_import_failed">ফাইল যোগ করা যায়নি. আবার চেষ্টা করুন.</string>
+    <string name="status_pin_protection_label">PIN সুরক্ষা</string>
+    <string name="status_pin_protection_value">সক্রিয় (৪-সংখ্যার SHA-256)</string>
+    <string name="status_backup_label">Backup Recovery</string>
+    <string name="status_backup_value">সংরক্ষিত আছে</string>
+    <string name="status_last_unlocked_label">সর্বশেষ আনলক</string>
+    <string name="status_just_now">এইমাত্র</string>
+    <string name="btn_lock_again">আবার Lock করুন</string>
+    <string name="btn_change_pin_shortcut">PIN পরিবর্তন করুন</string>
+    <string name="btn_reset_vault">সব রিসেট করুন</string>
+    <string name="dialog_reset_title">ভল্ট রিসেট করবেন?</string>
+    <string name="dialog_reset_body">বর্তমান PIN, Backup recovery code এবং সংরক্ষিত সব photo ও file মুছে যাবে।</string>
+    <string name="dialog_confirm_reset">রিসেট করুন</string>
+    <string name="dialog_cancel">বাতিল</string>
+</resources>
